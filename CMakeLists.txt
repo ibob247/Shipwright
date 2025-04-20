@@ -9,6 +9,9 @@ project(Ship VERSION 9.0.2 LANGUAGES C CXX)
 include(CMake/soh-cvars.cmake)
 include(CMake/lus-cvars.cmake)
 
+# OpenXR Integration
+find_package(OpenXR REQUIRED)
+
 option(SUPPRESS_WARNINGS "Suppress warnings in LUS and src (decomp)" ON)
 if(SUPPRESS_WARNINGS)
     MESSAGE("Suppressing warnings in LUS and src")
@@ -167,6 +170,12 @@ target_compile_options(libultraship PRIVATE "${WARNING_OVERRIDE}")
 add_subdirectory(ZAPDTR/ZAPD ${CMAKE_BINARY_DIR}/ZAPD)
 add_subdirectory(OTRExporter)
 add_subdirectory(soh)
+
+# Link OpenXR to main target
+if (TARGET soh)
+    target_link_libraries(soh PRIVATE OpenXR::openxr_loader)
+    target_include_directories(soh PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/soh/src)
+endif()
 
 set_property(TARGET soh PROPERTY APPIMAGE_DESKTOP_FILE_TERMINAL YES)
 set_property(TARGET soh PROPERTY APPIMAGE_DESKTOP_FILE "${CMAKE_SOURCE_DIR}/scripts/linux/appimage/soh.desktop")
