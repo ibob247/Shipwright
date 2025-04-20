@@ -14,19 +14,25 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Setup dependencies
+      - name: Setup Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake build-essential libglfw3-dev libglew-dev libopenxr-dev libsdl2-dev
+          sudo apt-get install -y cmake build-essential libglfw3-dev libglew-dev libsdl2-dev ninja-build pkg-config
+          # Install OpenXR SDK
+          sudo apt-get install -y libopenxr-dev
 
       - name: Configure CMake
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+        run: |
+          export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
+          cmake --no-warn-unused-cli -H. -Bbuild-cmake -GNinja -DCMAKE_BUILD_TYPE=Release
 
       - name: Build Project
-        run: cmake --build build --config Release --parallel
+        run: |
+          export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
+          cmake --build build-cmake --config Release --target GenerateSohOtr -j3
 
-      - name: Archive built artifacts
+      - name: Archive Built Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: shipwright-vr-build
-          path: build/soh/soh
+          path: build-cmake/soh/soh
