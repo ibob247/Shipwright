@@ -28,7 +28,9 @@ jobs:
 
       - name: Configure CMake
         run: |
-          cmake -B build-cmake -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="C:/Program Files/Khronos/OpenXR SDK/1.0.33"
+          cmake -B build-cmake -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_PREFIX_PATH="C:/Program Files/Khronos/OpenXR SDK/1.0.33" `
+            -DOpenXR_DIR="C:/Program Files/Khronos/OpenXR SDK/1.0.33/cmake"
 
       - name: Build project
         run: |
