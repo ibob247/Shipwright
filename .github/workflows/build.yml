@@ -20,7 +20,6 @@ jobs:
       - name: Install Dependencies
         run: |
           choco install cmake ninja visualstudio2022buildtools --yes --ignore-checksums
-          choco install windows-sdk-10-version-19041-all --yes --ignore-checksums
           refreshenv
 
       - name: Configure CMake
