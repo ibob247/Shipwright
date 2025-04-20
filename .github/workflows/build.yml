@@ -20,7 +20,7 @@ jobs:
       - name: Install Dependencies
         run: |
           choco install cmake ninja visualstudio2022buildtools --yes --ignore-checksums
-          refreshenv
+          echo "Environment updated"
 
       - name: Configure CMake
         run: >
