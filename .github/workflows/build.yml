@@ -1,4 +1,4 @@
-name: Build Shipwright VR Mod
+name: Build Shipwright VR Mod (Windows)
 
 on:
   push:
@@ -8,31 +8,31 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Setup Dependencies
+      - name: Checkout submodules
+        run: git submodule update --init --recursive
+
+      - name: Install Dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake build-essential libglfw3-dev libglew-dev libsdl2-dev ninja-build pkg-config
-          # Install OpenXR SDK
-          sudo apt-get install -y libopenxr-dev
+          choco install cmake ninja visualstudio2022buildtools --yes --ignore-checksums
+          choco install windows-sdk-10-version-19041-all --yes --ignore-checksums
+          refreshenv
 
       - name: Configure CMake
-        run: |
-          export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
-          cmake --no-warn-unused-cli -H. -Bbuild-cmake -GNinja -DCMAKE_BUILD_TYPE=Release
+        run: >
+          cmake -B build-cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release
 
       - name: Build Project
-        run: |
-          export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
-          cmake --build build-cmake --config Release --target GenerateSohOtr -j3
+        run: >
+          cmake --build build-cmake --target GenerateSohOtr --config Release --parallel
 
-      - name: Archive Built Artifacts
+      - name: Upload Built Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: shipwright-vr-build
-          path: build-cmake/soh/soh
+          name: shipwright-vr-windows-build
+          path: build-cmake/soh/soh.exe
