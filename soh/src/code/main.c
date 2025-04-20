@@ -7,9 +7,9 @@
 #include "stdio.h"
 #include <soh/Enhancements/bootcommands.h>
 #include "soh/OTRGlobals.h"
-
 #include <libultraship/bridge.h>
 #include "soh/CrashHandlerExp.h"
+#include "OpenXR/OpenXRManager.h"
 
 s32 gScreenWidth = SCREEN_WIDTH;
 s32 gScreenHeight = SCREEN_HEIGHT;
@@ -37,9 +37,7 @@ OSMesg sSiIntMsgBuf[1];
 
 void Main_LogSystemHeap(void) {
     osSyncPrintf(VT_FGCOL(GREEN));
-    // "System heap size% 08x (% dKB) Start address% 08x"
-    osSyncPrintf("システムヒープサイズ %08x(%dKB) 開始アドレス %08x\n", gSystemHeapSize, gSystemHeapSize / 1024,
-                 gSystemHeap);
+    osSyncPrintf("システムヒープサイズ %08x(%dKB) 開始アドレス %08x\n", gSystemHeapSize, gSystemHeapSize / 1024, gSystemHeap);
     osSyncPrintf(VT_RST);
 }
 
@@ -57,16 +55,26 @@ int SDL_main(int argc, char** argv) {
 int main(int argc, char** argv) {
 #endif
 
+    OpenXRManager xrManager;
+
+    if (!xrManager.Initialize()) {
+        fprintf(stderr, "Failed to initialize OpenXR\n");
+        return -1;
+    }
+
     GameConsole_Init();
     InitOTR();
-    // TODO: Was moved to below InitOTR because it requires window to be setup. But will be late to catch crashes.
     CrashHandlerRegisterCallback(CrashHandler_PrintSohData);
     BootCommands_Init();
 
     Heaps_Alloc();
     Main(0);
+
     DeinitOTR();
     Heaps_Free();
+
+    xrManager.Shutdown();
+
     return 0;
 }
 
@@ -80,7 +88,7 @@ void Main(void* arg) {
     size_t debugHeapSize;
     s16* msg;
 
-    osSyncPrintf("mainproc 実行開始\n"); // "Start running"
+    osSyncPrintf("mainproc 実行開始\n");
     gScreenWidth = SCREEN_WIDTH;
     gScreenHeight = SCREEN_HEIGHT;
     gAppNmiBufferPtr = (PreNmiBuff*)osAppNmiBuffer;
@@ -90,23 +98,16 @@ void Main(void* arg) {
     sysHeap = (uintptr_t)gSystemHeap;
     fb = SysCfb_GetFbPtr(0);
     gSystemHeapSize = 1024 * 1024 * 4;
-    // "System heap initalization"
     osSyncPrintf("システムヒープ初期化 %08x-%08x %08x\n", sysHeap, fb, gSystemHeapSize);
-    SystemHeap_Init((void*)sysHeap, gSystemHeapSize); // initializes the system heap
-    if (osMemSize >= 0x800000) {
-        debugHeap = (void*)SysCfb_GetFbEnd();
-        debugHeapSize = (0x80600000 - (uintptr_t)debugHeap);
-    } else {
-        debugHeapSize = 0x400;
-        debugHeap = SYSTEM_ARENA_MALLOC_DEBUG(debugHeapSize);
-    }
+    SystemHeap_Init((void*)sysHeap, gSystemHeapSize);
 
+    debugHeapSize = (osMemSize >= 0x800000) ? (0x80600000 - (uintptr_t)SysCfb_GetFbEnd()) : 0x400;
+    debugHeap = (osMemSize >= 0x800000) ? (void*)SysCfb_GetFbEnd() : SYSTEM_ARENA_MALLOC_DEBUG(debugHeapSize);
     debugHeapSize = 1024 * 64;
 
     osSyncPrintf("debug_InitArena(%08x, %08x)\n", debugHeap, debugHeapSize);
     DebugArena_Init(debugHeap, debugHeapSize);
     func_800636C0();
-
     R_ENABLE_ARENA_DBG = 0;
 
     osCreateMesgQueue(&sSiIntMsgQ, sSiIntMsgBuf, 1);
@@ -118,7 +119,7 @@ void Main(void* arg) {
     StackCheck_Init(&sIrqMgrStackInfo, sIrqMgrStack, sIrqMgrStack + sizeof(sIrqMgrStack), 0, 0x100, "irqmgr");
     IrqMgr_Init(&gIrqMgr, &sGraphStackInfo, Z_PRIORITY_IRQMGR, 1);
 
-    osSyncPrintf("タスクスケジューラの初期化\n"); // "Initialize the task scheduler"
+    osSyncPrintf("タスクスケジューラの初期化\n");
     StackCheck_Init(&sSchedStackInfo, sSchedStack, sSchedStack + sizeof(sSchedStack), 0, 0x100, "sched");
     Sched_Init(&gSchedContext, &sAudioStack, Z_PRIORITY_SCHED, D_80013960, 1, &gIrqMgr);
 
@@ -138,21 +139,4 @@ void Main(void* arg) {
     osSetThreadPri(0, Z_PRIORITY_SCHED);
 
     Graph_ThreadEntry(0);
-
-    while (true) {
-        msg = NULL;
-        osRecvMesg(&irqMgrMsgQ, (OSMesg*)&msg, OS_MESG_BLOCK);
-        if (msg == NULL) {
-            break;
-        }
-        if (*msg == OS_SC_PRE_NMI_MSG) {
-            osSyncPrintf("main.c: リセットされたみたいだよ\n"); // "Looks like it's been reset"
-            PreNmiBuff_SetReset(gAppNmiBufferPtr);
-        }
-    }
-
-    osSyncPrintf("mainproc 後始末\n"); // "Cleanup"
-    osDestroyThread(&sGraphThread);
-    func_800FBFD8();
-    osSyncPrintf("mainproc 実行終了\n"); // "End of execution"
 }
